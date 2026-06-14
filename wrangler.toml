@@ -3,24 +3,18 @@ main = "src/worker.js"
 compatibility_date = "2025-05-01"
 workers_dev = true
 
+# ── Custom domain ────────────────────────────────────────────────────────────
+# Serves the page + always sees the visitor's connected IP. (The dual-stack
+# v4./v6. subdomains were dropped: a Cloudflare-proxied host answers on both
+# stacks, so they can't force a single family — see the project's Obsidian doc.)
+# NOTE: top-level keys like `routes` MUST come before any [table] header in TOML,
+# or they get parsed as part of that table.
+routes = [
+  { pattern = "ipme.wtf", custom_domain = true },
+]
+
 # Static assets (logo, css, js, favicon) ride along on the same origin.
 # No index.html in ./public, so "/" falls through to the Worker.
 [assets]
 directory = "./public"
 binding = "ASSETS"
-
-# account_id is read from the CLOUDFLARE_ACCOUNT_ID env var at deploy time,
-# or pass --account-id. Uncomment to pin it:
-# account_id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-
-# ── Custom domains ───────────────────────────────────────────────────────────
-# Bind these once the ipme.wtf zone is active on Cloudflare. The three hostnames
-# back the dual-stack lookup:
-#   ipme.wtf      → A + AAAA  (main page, arrives on whatever stack the client has)
-#   v4.ipme.wtf   → A only    (forces IPv4 so app.js can read the v4 address)
-#   v6.ipme.wtf   → AAAA only (forces IPv6 so app.js can read the v6 address)
-# routes = [
-#   { pattern = "ipme.wtf",    custom_domain = true },
-#   { pattern = "v4.ipme.wtf", custom_domain = true },
-#   { pattern = "v6.ipme.wtf", custom_domain = true },
-# ]
