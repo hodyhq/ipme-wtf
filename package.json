@@ -1,0 +1,19 @@
+{
+  "name": "ipme-wtf",
+  "version": "0.1.0",
+  "description": "your fucking IP address, all of it — a Cloudflare Worker by hody",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^4"
+  },
+  "allowScripts": {
+    "workerd@1.20260611.1": true,
+    "esbuild@0.27.3": true
+  }
+}
