@@ -6,7 +6,7 @@ const $ = (s, r = document) => r.querySelector(s);
 const kv = (k, v) => `<div class="kv"><span>${k}</span><span>${v == null || v === "" ? "—" : esc(v)}</span></div>`;
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-/* ── copy to clipboard ────────────────────────────────── */
+/* ── copy to clipboard ───────────────────────────────────────────── */
 function toast(msg) {
   const t = $("#toast");
   t.textContent = msg;
@@ -32,7 +32,7 @@ document.addEventListener("click", (e) => {
   if (el && el.getAttribute("data-copy")) copy(el.getAttribute("data-copy"));
 });
 
-/* ── dual-stack: show BOTH the v4 and v6 address ────────────────────
+/* ── dual-stack: show BOTH the v4 and v6 address ─────────────────────
    A single page load only reveals one stack. We ask the per-stack
    subdomains, each pinned to one address family by its DNS records. */
 async function fetchStack(host) {
@@ -55,11 +55,15 @@ async function dualStack() {
   wrap.hidden = false;
   const other = await fetchStack(otherHost);
   const out = $("#ip-secondary");
-  if (other) {
+  // Guard: behind Cloudflare's proxy a "v4-only" hostname can still answer over IPv6,
+  // so only trust the result if its family actually matches what we asked for —
+  // otherwise we'd mislabel a v6 address as v4. Better to show one IP than a wrong one.
+  const otherMatches = other && (other.includes(":") ? 6 : 4) === otherFam;
+  if (otherMatches) {
     out.textContent = other;
     wrap.setAttribute("data-copy", other);
   } else {
-    out.textContent = `no IPv${otherFam} — you're ${otherFam === 6 ? "IPv4-only here" : "IPv6-only here"}`;
+    out.textContent = `no IPv${otherFam} detected`;
     out.classList.add("muted");
     wrap.removeAttribute("title");
   }
@@ -67,7 +71,7 @@ async function dualStack() {
   $("#ip-primary").insertAdjacentHTML("beforebegin", `<span class="lbl-inline">IPv${primaryFam}</span>`);
 }
 
-/* ── device facts (only the browser knows these) ──────────────────── */
+/* ── device facts (only the browser knows these) ─────────────────────── */
 function deviceInfo() {
   const ua = navigator.userAgent;
   const browser = detectBrowser(ua);
@@ -105,7 +109,7 @@ function detectOS(ua) {
   return "unknown";
 }
 
-/* ── WebRTC leak check ─────────────────────────────────────────
+/* ── WebRTC leak check ───────────────────────────────────────────────
    Browsers can leak local + public IPs over WebRTC even behind a VPN.
    We gather ICE candidates, classify them, and compare any *public*
    candidate to the server-seen IP to judge whether a VPN is leaking. */
@@ -147,7 +151,7 @@ function webrtcLeak(serverIP) {
     const klass = cands.map(classifyCandidate);
     const publics = cands.filter((_, i) => klass[i] === "public");
     const leaksReal = publics.length > 0; // a public IP escaped via WebRTC
-    // ── VERDICT (the meaningful judgement call — see README "tuning") ──
+    // ── VERDICT (the meaningful judgement call — see Obsidian doc "tuning") ──
     let verdict, cls;
     if (leaksReal && publics.some((p) => p !== serverIP)) {
       verdict = "⚠️ leaking a different public IP than the server sees — if you're on a VPN, it's leaking";
@@ -165,7 +169,7 @@ function webrtcLeak(serverIP) {
   }
 }
 
-/* ── headers toggle ───────────────────────────────────── */
+/* ── headers toggle ──────────────────────────────────────────────────── */
 function wireHeaders() {
   const t = $("#hdr-toggle"), box = $("#headers");
   const flip = () => {
@@ -176,7 +180,7 @@ function wireHeaders() {
   t.addEventListener("keydown", (e) => (e.key === "Enter" || e.key === " ") && flip());
 }
 
-/* ── copy-all ──────────────────────────────────────── */
+/* ── copy-all ─────────────────────────────────────────────────────────── */
 function wireCopyAll() {
   $("#copy-all").addEventListener("click", async (e) => {
     e.stopPropagation();
@@ -189,7 +193,7 @@ function wireCopyAll() {
   });
 }
 
-/* ── boot ────────────────────────────────────────── */
+/* ── boot ─────────────────────────────────────────────────────────────── */
 const SERVER_IP = ($("#ip-primary")?.textContent || "").trim();
 deviceInfo();
 wireHeaders();
