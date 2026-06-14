@@ -60,6 +60,9 @@ body {
 }
 .bubble:hover { border-color: var(--o2); }
 .bubble:active { transform: translateY(1px); }
+/* `.bubble { display:flex }` outranks the UA `[hidden]` rule, so re-assert it here
+   or the hidden secondary IP row would still show. */
+.bubble[hidden] { display: none; }
 .bubble .v {
   font-weight: 800;
   font-size: clamp(20px, 6vw, 30px);
