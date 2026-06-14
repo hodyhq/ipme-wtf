@@ -32,9 +32,9 @@ document.addEventListener("click", (e) => {
   if (el && el.getAttribute("data-copy")) copy(el.getAttribute("data-copy"));
 });
 
-/* ── dual-stack: show BOTH the v4 and v6 address ─────────────────────
-   A single page load only reveals one stack. We ask the per-stack
-   subdomains, each pinned to one address family by its DNS records. */
+/* ── dual-stack: show the other IP family when we can ────────────────
+   A single page load only reveals one stack. We try the per-stack
+   subdomain for the other family — but see the guard below. */
 async function fetchStack(host) {
   try {
     const r = await fetch(`https://${host}/ip.json`, { cache: "no-store" });
@@ -47,25 +47,22 @@ async function fetchStack(host) {
 async function dualStack() {
   const primary = $("#ip-primary").textContent.trim();
   const primaryFam = primary.includes(":") ? 6 : 4;
-  // The page already shows whatever stack you arrived on; fetch the *other* one.
+  // The page already shows whatever stack you arrived on; try the *other* one.
   const otherHost = primaryFam === 4 ? "v6.ipme.wtf" : "v4.ipme.wtf";
   const otherFam = primaryFam === 4 ? 6 : 4;
   const wrap = $("#ip-secondary-wrap");
   wrap.querySelector("[data-fam]").textContent = `IPv${otherFam}`;
-  wrap.hidden = false;
   const other = await fetchStack(otherHost);
   const out = $("#ip-secondary");
-  // Guard: behind Cloudflare's proxy a "v4-only" hostname can still answer over IPv6,
-  // so only trust the result if its family actually matches what we asked for —
-  // otherwise we'd mislabel a v6 address as v4. Better to show one IP than a wrong one.
+  // Only show the second stack if we can VERIFY it's actually the other family.
+  // Behind Cloudflare's proxy every hostname answers on both stacks, so a "v4-only"
+  // host can hand back a v6 address — show it only when it genuinely matches, else
+  // hide the row rather than mislead someone into thinking they lack that stack.
   const otherMatches = other && (other.includes(":") ? 6 : 4) === otherFam;
   if (otherMatches) {
     out.textContent = other;
     wrap.setAttribute("data-copy", other);
-  } else {
-    out.textContent = `no IPv${otherFam} detected`;
-    out.classList.add("muted");
-    wrap.removeAttribute("title");
+    wrap.hidden = false;
   }
   // Label the primary bubble's family too.
   $("#ip-primary").insertAdjacentHTML("beforebegin", `<span class="lbl-inline">IPv${primaryFam}</span>`);
