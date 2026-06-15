@@ -5,6 +5,7 @@
 const $ = (s, r = document) => r.querySelector(s);
 const kv = (k, v) => `<div class="kv"><span>${k}</span><span>${v == null || v === "" ? "—" : esc(v)}</span></div>`;
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const famOf = (ip) => (ip.includes(":") ? 6 : 4);
 
 /* ── copy to clipboard ───────────────────────────────────────────── */
 function toast(msg) {
@@ -32,9 +33,9 @@ document.addEventListener("click", (e) => {
   if (el && el.getAttribute("data-copy")) copy(el.getAttribute("data-copy"));
 });
 
-/* ── dual-stack: show the other IP family when we can ────────────────
-   A single page load only reveals one stack. We try the per-stack
-   subdomain for the other family — but see the guard below. */
+/* ── dual-stack: show BOTH the v4 and v6 address ─────────────────────
+   A single page load only reveals one stack. We ask the per-stack
+   subdomains, each pinned to one address family by its DNS records. */
 async function fetchStack(host) {
   try {
     const r = await fetch(`https://${host}/ip.json`, { cache: "no-store" });
@@ -44,28 +45,28 @@ async function fetchStack(host) {
     return null;
   }
 }
+// Fill the second-IP row (the family you did NOT arrive on). Won't overwrite a row
+// that's already shown.
+function showSecondaryIP(ip, note) {
+  const wrap = $("#ip-secondary-wrap");
+  if (!wrap.hidden) return;
+  wrap.querySelector("[data-fam]").textContent = `IPv${famOf(ip)}`;
+  $("#ip-secondary").textContent = note ? `${ip}  · ${note}` : ip;
+  wrap.setAttribute("data-copy", ip);
+  wrap.hidden = false;
+}
 async function dualStack() {
   const primary = $("#ip-primary").textContent.trim();
-  const primaryFam = primary.includes(":") ? 6 : 4;
-  // The page already shows whatever stack you arrived on; try the *other* one.
-  const otherHost = primaryFam === 4 ? "v6.ipme.wtf" : "v4.ipme.wtf";
-  const otherFam = primaryFam === 4 ? 6 : 4;
-  const wrap = $("#ip-secondary-wrap");
-  wrap.querySelector("[data-fam]").textContent = `IPv${otherFam}`;
-  const other = await fetchStack(otherHost);
-  const out = $("#ip-secondary");
-  // Only show the second stack if we can VERIFY it's actually the other family.
-  // Behind Cloudflare's proxy every hostname answers on both stacks, so a "v4-only"
-  // host can hand back a v6 address — show it only when it genuinely matches, else
-  // hide the row rather than mislead someone into thinking they lack that stack.
-  const otherMatches = other && (other.includes(":") ? 6 : 4) === otherFam;
-  if (otherMatches) {
-    out.textContent = other;
-    wrap.setAttribute("data-copy", other);
-    wrap.hidden = false;
-  }
-  // Label the primary bubble's family too.
+  const primaryFam = famOf(primary);
+  // Label the primary bubble's family.
   $("#ip-primary").insertAdjacentHTML("beforebegin", `<span class="lbl-inline">IPv${primaryFam}</span>`);
+  const otherFam = primaryFam === 4 ? 6 : 4;
+  $("#ip-secondary-wrap").querySelector("[data-fam]").textContent = `IPv${otherFam}`;
+  // Try the per-stack subdomain — but behind Cloudflare's proxy it can answer either
+  // family, so only trust a result that's genuinely the other one. (WebRTC also fills
+  // this row when it discovers your other-stack IP — see webrtcLeak.)
+  const other = await fetchStack(primaryFam === 4 ? "v6.ipme.wtf" : "v4.ipme.wtf");
+  if (other && famOf(other) === otherFam) showSecondaryIP(other);
 }
 
 /* ── device facts (only the browser knows these) ─────────────────────── */
@@ -108,11 +109,16 @@ function detectOS(ua) {
 
 /* ── WebRTC leak check ───────────────────────────────────────────────
    Browsers can leak local + public IPs over WebRTC even behind a VPN.
-   We gather ICE candidates, classify them, and compare any *public*
-   candidate to the server-seen IP to judge whether a VPN is leaking. */
+   We gather ICE candidates, classify them, and judge a leak only when a
+   SAME-family public IP differs from the server-seen IP. A different family
+   is just your other stack — we surface it as your second IP instead. */
 function classifyCandidate(addr) {
   if (/\.local$/i.test(addr)) return "mdns"; // hostname-obfuscated (modern, safe)
-  if (addr.includes(":")) return "ipv6";
+  if (addr.includes(":")) {
+    // IPv6: link-local (fe80::/10) + ULA (fc00::/7) + loopback are private; rest is global
+    if (/^fe[89ab]/i.test(addr) || /^f[cd]/i.test(addr) || addr === "::1") return "private";
+    return "public";
+  }
   if (/^(10\.|127\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.)/.test(addr)) return "private";
   return "public";
 }
@@ -146,16 +152,26 @@ function webrtcLeak(serverIP) {
   function render() {
     const cands = [...found];
     const klass = cands.map(classifyCandidate);
+    const serverFam = famOf(serverIP);
     const publics = cands.filter((_, i) => klass[i] === "public");
-    const leaksReal = publics.length > 0; // a public IP escaped via WebRTC
-    // ── VERDICT (the meaningful judgement call — see Obsidian doc "tuning") ──
+
+    // Your OTHER-stack public IP (a different family than the server saw) is NOT a leak —
+    // it's just your other address. Use it to fill the second-IP row if it's still empty
+    // (this is how your IPv4 shows up when you arrived over IPv6, e.g. on mobile).
+    const otherStack = publics.find((p) => famOf(p) !== serverFam);
+    if (otherStack) showSecondaryIP(otherStack, "via WebRTC");
+
+    // A REAL leak = a SAME-family public IP that differs from what the server sees
+    // (your true IP escaping a VPN). A different *family* is normal dual-stack, not a leak.
+    const sameFamilyLeak = publics.some((p) => famOf(p) === serverFam && p !== serverIP);
+    // ── VERDICT ──
     let verdict, cls;
-    if (leaksReal && publics.some((p) => p !== serverIP)) {
-      verdict = "⚠️ leaking a different public IP than the server sees — if you're on a VPN, it's leaking";
+    if (sameFamilyLeak) {
+      verdict = "⚠️ WebRTC exposes a different public IP on your own stack — if you're on a VPN, it's leaking";
       cls = "bad";
-    } else if (leaksReal) {
-      verdict = "public IP exposed via WebRTC (matches server — no VPN, or VPN+no leak)";
-      cls = "warn";
+    } else if (publics.length) {
+      verdict = "no leak ✅ — WebRTC only exposes your own address(es)";
+      cls = "good";
     } else {
       verdict = "no public IP leaked ✅ (only local/mDNS candidates)";
       cls = "good";
