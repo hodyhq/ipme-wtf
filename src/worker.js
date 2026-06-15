@@ -1,5 +1,5 @@
 /**
- * ipme.wtf — your fucking IP address, all of it.
+ * ipme.wtf — your IP address, all of it.
  *
  * A single Cloudflare Worker that:
  *   - renders the page server-side (works without JS),
@@ -203,12 +203,12 @@ async function renderPage(request, env) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ipme.wtf — your fucking IP address</title>
-<meta name="description" content="Your fucking IP address, and everything else the internet can see about your connection. By hody.">
+<title>ipme.wtf — your IP address</title>
+<meta name="description" content="Your IP address, and everything else the internet can see about your connection. By hody.">
 <meta name="theme-color" content="#05050a">
 <link rel="icon" href="/favicon.png">
 <meta property="og:title" content="ipme.wtf">
-<meta property="og:description" content="Your fucking IP address — and everything else.">
+<meta property="og:description" content="Your IP address — and everything else.">
 <meta property="og:image" content="/og-icon.png">
 <link rel="stylesheet" href="/styles.css">
 </head>
@@ -216,10 +216,10 @@ async function renderPage(request, env) {
 <main class="page">
   <header class="top">
     <span class="brand"><span class="br">&lt;</span><span class="h">H</span><span class="br">&gt;</span> ipme.wtf</span>
-    <span class="tag">● your fucking IP, all of it</span>
+    <span class="tag">● your IP, all of it</span>
   </header>
 
-  <p class="lead">your fucking IP address is</p>
+  <p class="lead">your IP address is</p>
 
   <div class="bubble" data-copy="${esc(d.ip)}" title="click to copy">
     <span class="v" id="ip-primary">${esc(d.ip)}</span>
