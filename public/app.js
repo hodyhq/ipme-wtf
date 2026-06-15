@@ -119,7 +119,10 @@ function classifyCandidate(addr) {
     if (/^fe[89ab]/i.test(addr) || /^f[cd]/i.test(addr) || addr === "::1") return "private";
     return "public";
   }
-  if (/^(10\.|127\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.)/.test(addr)) return "private";
+  // RFC1918 + loopback/link-local, CGNAT (100.64.0.0/10), and 192.0.0.0/24
+  // (IETF/464XLAT service-continuity, e.g. the 192.0.0.8 dummy on T-Mobile) —
+  // none of these are your real public IP.
+  if (/^(10\.|127\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|192\.0\.0\.|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.)/.test(addr)) return "private";
   return "public";
 }
 function webrtcLeak(serverIP) {
