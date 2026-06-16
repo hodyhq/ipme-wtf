@@ -263,6 +263,8 @@ async function renderPage(request, env) {
       <code class="chip" data-copy="curl ipme.wtf">curl ipme.wtf</code>
       <a class="chip" href="/json">/json</a>
       <button class="chip" id="copy-all">copy all as JSON</button>
+      <a class="chip" href="https://ko-fi.com/hodyhq" target="_blank" rel="noopener">☕ ko-fi</a>
+      <a class="chip" href="https://github.com/sponsors/hodyhq" target="_blank" rel="noopener">♥ sponsor</a>
     </span>
     <a class="made" href="https://hody.dev" target="_blank" rel="noopener">
       <img src="/hody-logo.png" alt="hody" height="20">
